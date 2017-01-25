@@ -6,7 +6,8 @@ import (
 )
 
 //CreatePool create a *redis.Pool
-func CreatePool(size int, server, auth string) *redis.Pool {
+//db is optional redis db number. the default value is 0
+func CreatePool(size int, server, auth string, db ...int) *redis.Pool {
 	pool := &redis.Pool{
 		MaxIdle:     size,
 		MaxActive:   size,
@@ -22,6 +23,9 @@ func CreatePool(size int, server, auth string) *redis.Pool {
 					c.Close()
 					return nil, err
 				}
+			}
+			if len(db) > 0 && db[0] > 0 {
+				c.Do("SELECT", db)
 			}
 			return c, err
 		},
