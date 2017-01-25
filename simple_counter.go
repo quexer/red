@@ -1,4 +1,4 @@
-package utee
+package red
 
 import (
 	"github.com/garyburd/redigo/redis"
