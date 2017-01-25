@@ -16,7 +16,7 @@ type Queue struct {
 	pool   *redis.Pool
 	buffer utee.MemQueue
 	batch  int
-	f      DoFunc
+	do     DoFunc
 }
 
 //NewQueue,  create a redis queue with optional input memory buffer
@@ -36,7 +36,7 @@ func NewQueue(pool *redis.Pool, name string, enqBatch, buffer int) *Queue {
 	q := &Queue{
 		name:   qname(name),
 		pool:   pool,
-		f:      BuildDoFunc(pool),
+		do:     BuildDoFunc(pool),
 		buffer: utee.NewMemQueue(buffer),
 		batch:  enqBatch,
 	}
@@ -70,7 +70,7 @@ func (p *Queue) enqBatch(l []interface{}) error {
 
 //Len, return queue length
 func (p *Queue) Len() (int, error) {
-	i, err := redis.Int(p.f("LLEN", p.name))
+	i, err := redis.Int(p.do("LLEN", p.name))
 
 	if err != nil && err.Error() == "redigo: nil returned" {
 		//expire
@@ -90,7 +90,7 @@ func (p *Queue) Enq(data interface{}) error {
 }
 
 func (p *Queue) Deq() (interface{}, error) {
-	return p.f("LPOP", p.name)
+	return p.do("LPOP", p.name)
 }
 
 func (p *Queue) BufferLen() int {
