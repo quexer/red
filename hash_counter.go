@@ -6,17 +6,25 @@ import (
 )
 
 type HashCounter struct {
-	do DoFunc
+	name string
+	do   DoFunc
 }
 
-func (p *HashCounter) Inc(key, field string, n int) int {
-	i, err := redis.Int(p.do("HINCRBY", key, field, n))
+func NewHashCounter(name string, f DoFunc) *HashCounter {
+	return &HashCounter{
+		name: name,
+		do:   f,
+	}
+}
+
+func (p *HashCounter) Inc(field string, n int) int {
+	i, err := redis.Int(p.do("HINCRBY", p.name, field, n))
 	utee.Log(err, "HashCounter Inc err")
 	return i
 }
 
-func (p *HashCounter) GetAll(key string) map[string]int {
-	m, err := redis.IntMap(p.do("HGETALL", key))
+func (p *HashCounter) GetAll() map[string]int {
+	m, err := redis.IntMap(p.do("HGETALL", p.name))
 	utee.Log(err, "HashCounter GetAll err")
 	if err != nil {
 		return map[string]int{}
@@ -24,23 +32,18 @@ func (p *HashCounter) GetAll(key string) map[string]int {
 	return m
 }
 
-func (p *HashCounter) Get(key, field string) int {
-	i, err := redis.Int(p.do("HGET", key, field))
+func (p *HashCounter) Get(field string) int {
+	i, err := redis.Int(p.do("HGET", p.name, field))
 	utee.Log(err, "HashCounter Get err")
 	return i
 }
 
-func (p *HashCounter) Set(key string, field int) {
-	_, err := redis.Int(p.do("HSET", key, field))
+func (p *HashCounter) Set(field string, value int) {
+	_, err := redis.Int(p.do("HSET", p.name, field, value))
 	utee.Log(err, "HashCounter Set err")
 }
 
-func (p *HashCounter) DelAll(key ...string) {
-	l := []interface{}{}
-	for _, k := range key {
-		l = append(l, k)
-	}
-
-	_, err := redis.Int(p.do("DEL", l...))
+func (p *HashCounter) Clear() {
+	_, err := redis.Int(p.do("DEL", p.name))
 	utee.Log(err, "HashCounter DelAll err")
 }
