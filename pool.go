@@ -25,7 +25,9 @@ func CreatePool(size int, server, auth string, db ...int) *redis.Pool {
 				}
 			}
 			if len(db) > 0 && db[0] > 0 {
-				c.Do("SELECT", db)
+				if _, err := c.Do("SELECT", db[0]); err != nil {
+					return nil, err
+				}
 			}
 			return c, err
 		},
