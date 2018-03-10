@@ -2,7 +2,6 @@ package red
 
 import (
 	"github.com/garyburd/redigo/redis"
-	"github.com/quexer/utee"
 )
 
 type HashCounter struct {
@@ -17,33 +16,24 @@ func NewHashCounter(name string, f DoFunc) *HashCounter {
 	}
 }
 
-func (p *HashCounter) Inc(field string, n int) int {
-	i, err := redis.Int(p.do("HINCRBY", p.name, field, n))
-	utee.Log(err, "HashCounter Inc err")
-	return i
+func (p *HashCounter) Inc(field string, n int) (int, error) {
+	return redis.Int(p.do("HINCRBY", p.name, field, n))
 }
 
-func (p *HashCounter) GetAll() map[string]int {
-	m, err := redis.IntMap(p.do("HGETALL", p.name))
-	utee.Log(err, "HashCounter GetAll err")
-	if err != nil {
-		return map[string]int{}
-	}
-	return m
+func (p *HashCounter) GetAll() (map[string]int, error) {
+	return redis.IntMap(p.do("HGETALL", p.name))
 }
 
-func (p *HashCounter) Get(field string) int {
-	i, err := redis.Int(p.do("HGET", p.name, field))
-	utee.Log(err, "HashCounter Get err")
-	return i
+func (p *HashCounter) Get(field string) (int, error) {
+	return redis.Int(p.do("HGET", p.name, field))
 }
 
-func (p *HashCounter) Set(field string, value int) {
+func (p *HashCounter) Set(field string, value int) error {
 	_, err := redis.Int(p.do("HSET", p.name, field, value))
-	utee.Log(err, "HashCounter Set err")
+	return err
 }
 
-func (p *HashCounter) Clear() {
+func (p *HashCounter) Clear() error {
 	_, err := redis.Int(p.do("DEL", p.name))
-	utee.Log(err, "HashCounter DelAll err")
+	return err
 }
