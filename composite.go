@@ -82,8 +82,8 @@ func (p *CompositeQ) Deq(uid interface{}) ([]byte, error) {
 					log.Println("[Q Deq] err in clean", err)
 				}
 			}()
+			return b, nil
 		}
-		return b, nil
 	}
 	return nil, nil
 }
