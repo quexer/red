@@ -24,7 +24,8 @@ type Queue struct {
 //name: queue name in redis
 //enqBatch: batch enqueue number, must >=1
 //buffer: memory buffer capacity, must >= 0
-func NewQueue(pool *redis.Pool, name string, enqBatch, buffer int) *Queue {
+//concurrent (optional)  : concurrent enqueue count. default is half of pool.MaxActive
+func NewQueue(pool *redis.Pool, name string, enqBatch, buffer int, concurrent ...int) *Queue {
 	if enqBatch < 1 {
 		log.Fatal("batch must >= 1")
 	}
@@ -40,7 +41,17 @@ func NewQueue(pool *redis.Pool, name string, enqBatch, buffer int) *Queue {
 		buffer: utee.NewMemQueue(buffer),
 		batch:  enqBatch,
 	}
-	for i := 0; i < pool.MaxActive; i++ {
+
+	n := pool.MaxActive / 2 //default half of MaxActive
+	if len(concurrent) > 0 {
+		n = concurrent[0]
+	}
+
+	if n < 1 {
+		log.Fatal("concurrent must >= 1")
+	}
+
+	for i := 0; i < n; i++ {
 		go q.enqLoop()
 	}
 	return q
