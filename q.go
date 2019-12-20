@@ -1,10 +1,11 @@
 package red
 
 import (
-	"github.com/garyburd/redigo/redis"
-	"github.com/quexer/utee"
 	"log"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
+	"github.com/quexer/utee"
 )
 
 func qname(name string) string {
@@ -19,12 +20,12 @@ type Queue struct {
 	do     DoFunc
 }
 
-//NewQueue,  create a redis queue with optional input memory buffer
-//pool: redis connection pool
-//name: queue name in redis
-//enqBatch: batch enqueue number, must >=1
-//buffer: memory buffer capacity, must >= 0
-//concurrent (optional)  : concurrent enqueue count. default is half of pool.MaxActive
+// NewQueue,  create a redis queue with optional input memory buffer
+// pool: redis connection pool
+// name: queue name in redis
+// enqBatch: batch enqueue number, must >=1
+// buffer: memory buffer capacity, must >= 0
+// concurrent (optional)  : concurrent enqueue count. default is half of pool.MaxActive
 func NewQueue(pool *redis.Pool, name string, enqBatch, buffer int, concurrent ...int) *Queue {
 	if enqBatch < 1 {
 		log.Fatal("batch must >= 1")
@@ -42,7 +43,7 @@ func NewQueue(pool *redis.Pool, name string, enqBatch, buffer int, concurrent ..
 		batch:  enqBatch,
 	}
 
-	n := pool.MaxActive / 2 //default half of MaxActive
+	n := pool.MaxActive / 2 // default half of MaxActive
 	if len(concurrent) > 0 {
 		n = concurrent[0]
 	}
@@ -79,23 +80,23 @@ func (p *Queue) enqBatch(l []interface{}) error {
 	return c.Flush()
 }
 
-//Len, return queue length
+// Len, return queue length
 func (p *Queue) Len() (int, error) {
 	i, err := redis.Int(p.do("LLEN", p.name))
 
 	if err != nil && err.Error() == "redigo: nil returned" {
-		//expire
+		// expire
 		return 0, nil
 	}
 	return i, err
 }
 
-//EnqBlocking.  enqueue, block if buffer is full
+// EnqBlocking.  enqueue, block if buffer is full
 func (p *Queue) EnqBlocking(data interface{}) {
 	p.buffer.EnqBlocking(data)
 }
 
-//Enq.  enqueue, return error if buffer is full
+// Enq.  enqueue, return error if buffer is full
 func (p *Queue) Enq(data interface{}) error {
 	return p.buffer.Enq(data)
 }

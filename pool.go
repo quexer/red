@@ -1,12 +1,13 @@
 package red
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
-//CreatePool create a *redis.Pool
-//db is optional redis db number. the default value is 0
+// CreatePool create a *redis.Pool
+// db is optional redis db number. the default value is 0
 func CreatePool(size int, server, auth string, db ...int) *redis.Pool {
 	pool := &redis.Pool{
 		MaxIdle:     size,
@@ -32,7 +33,7 @@ func CreatePool(size int, server, auth string, db ...int) *redis.Pool {
 			return c, err
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			//test only if the connection is not used within last 10 seconds
+			// test only if the connection is not used within last 10 seconds
 			if time.Now().After(t.Add(10 * time.Second)) {
 				_, err := c.Do("PING")
 				return err
@@ -44,10 +45,10 @@ func CreatePool(size int, server, auth string, db ...int) *redis.Pool {
 	return pool
 }
 
-//DoFunc is a general redis template function, which can execute any redis command
+// DoFunc is a general redis template function, which can execute any redis command
 type DoFunc func(string, ...interface{}) (interface{}, error)
 
-//BuildExeFunc build a ExeFunc controlled by pool
+// BuildExeFunc build a ExeFunc controlled by pool
 func BuildDoFunc(pool *redis.Pool) DoFunc {
 	return func(cmd string, args ...interface{}) (interface{}, error) {
 		c := pool.Get()

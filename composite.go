@@ -6,9 +6,10 @@ package red
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/pborman/uuid"
-	"log"
 )
 
 type CompositeQ struct {
