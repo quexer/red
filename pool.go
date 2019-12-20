@@ -6,6 +6,18 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+type Opt struct {
+	Server   string
+	Auth     string
+	Db       int
+	PoolSize int
+}
+
+// CreatePoolWithOpt create a *redis.Pool with Opt
+func CreatePoolWithOpt(opt Opt) *redis.Pool {
+	return CreatePool(opt.PoolSize, opt.Server, opt.Auth, opt.Db)
+}
+
 // CreatePool create a *redis.Pool
 // db is optional redis db number. the default value is 0
 func CreatePool(size int, server, auth string, db ...int) *redis.Pool {
