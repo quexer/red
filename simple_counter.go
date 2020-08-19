@@ -1,8 +1,9 @@
 package red
 
 import (
+	"log"
+
 	"github.com/garyburd/redigo/redis"
-	"github.com/quexer/utee"
 )
 
 // SimpleCounter is the interface that wraps a increase-only counter(based on redis HyperLogLog)
@@ -38,7 +39,7 @@ func (p *simpleCounter) Get(key ...string) int {
 	}
 
 	i, err := redis.Int(p.do("PFCOUNT", l...))
-	utee.Log(err)
+	log.Println(err)
 	return i
 }
 
@@ -48,7 +49,7 @@ func (p *simpleCounter) Append(key string, element ...interface{}) bool {
 		l = append(l, v)
 	}
 	i, err := redis.Int(p.do("PFADD", l...))
-	utee.Log(err)
+	log.Println(err)
 	return i == 1
 }
 
@@ -59,5 +60,5 @@ func (p *simpleCounter) Del(key ...string) {
 	}
 
 	_, err := redis.Int(p.do("DEL", l...))
-	utee.Log(err)
+	log.Println(err)
 }

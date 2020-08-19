@@ -63,7 +63,7 @@ func (p *Queue) enqLoop() {
 		l := p.buffer.DeqN(p.batch)
 		if len(l) > 0 {
 			err := p.enqBatch(l)
-			utee.Log(err, "[BufferedInputQueue enqLoop] err ")
+			log.Println(err, "[BufferedInputQueue enqLoop] err ")
 		} else {
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -75,12 +75,12 @@ func (p *Queue) enqBatch(l []interface{}) error {
 	defer c.Close()
 	for _, data := range l {
 		err := c.Send("RPUSH", p.name, data)
-		utee.Log(err, "[BufferedInputQueue enqBatch] err :")
+		log.Println(err, "[BufferedInputQueue enqBatch] err :")
 	}
 	return c.Flush()
 }
 
-// Len, return queue length
+// Len , return queue length
 func (p *Queue) Len() (int, error) {
 	i, err := redis.Int(p.do("LLEN", p.name))
 
@@ -91,12 +91,12 @@ func (p *Queue) Len() (int, error) {
 	return i, err
 }
 
-// EnqBlocking.  enqueue, block if buffer is full
+// EnqBlocking .  enqueue, block if buffer is full
 func (p *Queue) EnqBlocking(data interface{}) {
 	p.buffer.EnqBlocking(data)
 }
 
-// Enq.  enqueue, return error if buffer is full
+// Enq .  enqueue, return error if buffer is full
 func (p *Queue) Enq(data interface{}) error {
 	return p.buffer.Enq(data)
 }
