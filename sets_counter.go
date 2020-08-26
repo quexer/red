@@ -3,7 +3,7 @@ package red
 import (
 	"fmt"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // unique value counter based on redis sets
