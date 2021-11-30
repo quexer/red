@@ -62,8 +62,9 @@ func (p *Queue) enqLoop() {
 	for {
 		l := p.buffer.DeqN(p.batch)
 		if len(l) > 0 {
-			err := p.enqBatch(l)
-			log.Println(err, "[BufferedInputQueue enqLoop] err ")
+			if err := p.enqBatch(l); err != nil {
+				log.Println(err, "[BufferedInputQueue enqLoop] err ")
+			}
 		} else {
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -74,8 +75,9 @@ func (p *Queue) enqBatch(l []interface{}) error {
 	c := p.pool.Get()
 	defer c.Close()
 	for _, data := range l {
-		err := c.Send("RPUSH", p.name, data)
-		log.Println(err, "[BufferedInputQueue enqBatch] err :")
+		if err := c.Send("RPUSH", p.name, data); err != nil {
+			log.Println(err, "[BufferedInputQueue enqBatch] err :")
+		}
 	}
 	return c.Flush()
 }
