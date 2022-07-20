@@ -1,7 +1,3 @@
-/**
- *  composite queue implementation, using redis
- *  support multi queue & queue element expire
- */
 package red
 
 import (
@@ -9,9 +5,11 @@ import (
 	"log"
 
 	"github.com/gomodule/redigo/redis"
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 )
 
+// CompositeQ composite queue implementation, using redis
+//  support multi queue & queue element expire
 type CompositeQ struct {
 	name string
 	do   DoFunc
@@ -34,7 +32,7 @@ func (p *CompositeQ) Len(uid interface{}) (int, error) {
 	i, err := redis.Int(p.do("LLEN", name))
 
 	if err != nil && err == redis.ErrNil {
-		//expire
+		// expire
 		return 0, nil
 	}
 
@@ -42,7 +40,11 @@ func (p *CompositeQ) Len(uid interface{}) (int, error) {
 }
 
 func (p *CompositeQ) Enq(uid interface{}, data []byte, ttl ...uint32) error {
-	k := fmt.Sprintf("mk%v", uuid.NewUUID())
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return err
+	}
+	k := fmt.Sprintf("mk%v", id)
 	if len(ttl) > 0 && ttl[0] > 0 {
 		if _, err := p.do("SETEX", k, ttl[0], data); err != nil {
 			return err
@@ -78,7 +80,7 @@ func (p *CompositeQ) Deq(uid interface{}) ([]byte, error) {
 
 		if b != nil {
 			go func() {
-				//clean
+				// clean
 				if _, err := p.do("DEL", k); err != nil {
 					log.Println("[Q Deq] err in clean", err)
 				}
