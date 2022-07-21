@@ -11,7 +11,7 @@ import (
 )
 
 var _ = Describe("Mutex", func() {
-	var lock *red.Mutex
+	var mutex *red.Mutex
 
 	var redisSrv *miniredis.Miniredis
 	BeforeEach(func() {
@@ -23,7 +23,7 @@ var _ = Describe("Mutex", func() {
 			Addr: redisSrv.Addr(),
 		})
 
-		lock = red.NewMutex(client)
+		mutex = red.NewMutex(client)
 	})
 	AfterEach(func() {
 		redisSrv.Close()
@@ -35,41 +35,47 @@ var _ = Describe("Mutex", func() {
 	)
 
 	It("repeat lock", func() {
-		unlock, ok, err := lock.Lock(ctx, lockName, expire)
+		fn, ok, err := mutex.Lock(ctx, lockName, expire)
 		Ω(err).To(Succeed())
 		Ω(ok).To(BeTrue())
-		Ω(unlock).NotTo(BeNil())
+		Ω(fn).NotTo(BeNil())
 
-		unlock, ok, err = lock.Lock(ctx, lockName, expire)
+		fn, ok, err = mutex.Lock(ctx, lockName, expire)
 		Ω(err).To(Succeed())
 		Ω(ok).To(BeFalse()) // fail
-		Ω(unlock).To(BeNil())
+		Ω(fn).To(BeNil())
 	})
 	It("lock again after manually unlock", func() {
-		unlock, ok, err := lock.Lock(ctx, lockName, expire)
+		fn, ok, err := mutex.Lock(ctx, lockName, expire)
 		Ω(err).To(Succeed())
 		Ω(ok).To(BeTrue())
-		Ω(unlock).NotTo(BeNil())
+		Ω(fn).NotTo(BeNil())
 
-		err = unlock() // unlock
+		err = fn() // unlock
 		Ω(err).To(Succeed())
 
-		unlock, ok, err = lock.Lock(ctx, lockName, expire)
+		fn, ok, err = mutex.Lock(ctx, lockName, expire)
 		Ω(err).To(Succeed())
 		Ω(ok).To(BeTrue()) // success
-		Ω(unlock).NotTo(BeNil())
+		Ω(fn).NotTo(BeNil())
 	})
 	It("lock again after expire", func() {
-		unlock, ok, err := lock.Lock(ctx, lockName, expire)
+		fn, ok, err := mutex.Lock(ctx, lockName, expire)
 		Ω(err).To(Succeed())
 		Ω(ok).To(BeTrue())
-		Ω(unlock).NotTo(BeNil())
+		Ω(fn).NotTo(BeNil())
 
-		redisSrv.FastForward(time.Hour) //
+		redisSrv.FastForward(time.Hour) // expire quickly
 
-		unlock, ok, err = lock.Lock(ctx, lockName, expire)
+		fn, ok, err = mutex.Lock(ctx, lockName, expire)
 		Ω(err).To(Succeed())
 		Ω(ok).To(BeTrue()) // success
-		Ω(unlock).NotTo(BeNil())
+		Ω(fn).NotTo(BeNil())
+	})
+	It("don't care unlock function", func() {
+		_, ok, err := mutex.Lock(ctx, lockName, expire)
+
+		Ω(err).To(Succeed())
+		Ω(ok).To(BeTrue())
 	})
 })
