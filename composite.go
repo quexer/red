@@ -1,24 +1,26 @@
 package red
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
 
 // CompositeQ composite queue implementation, using redis
 //  support multi queue & queue element expire
 type CompositeQ struct {
-	name string
-	do   DoFunc
+	name        string
+	redisClient redis.UniversalClient
 }
 
-func NewCompositeQ(name string, f DoFunc) *CompositeQ {
+func NewCompositeQ(name string, redisClient redis.UniversalClient) *CompositeQ {
 	return &CompositeQ{
-		name: name,
-		do:   f,
+		name:        name,
+		redisClient: redisClient,
 	}
 }
 
@@ -26,46 +28,40 @@ func (p *CompositeQ) compositeQname(uid interface{}) string {
 	return fmt.Sprintf("q-%s-%v", p.name, uid)
 }
 
-func (p *CompositeQ) Len(uid interface{}) (int, error) {
+func (p *CompositeQ) Len(ctx context.Context, uid interface{}) (int, error) {
 	name := p.compositeQname(uid)
 
-	i, err := redis.Int(p.do("LLEN", name))
-
-	if err != nil && err == redis.ErrNil {
-		// expire
+	i, err := p.redisClient.LLen(ctx, name).Result()
+	if err == redis.Nil {
 		return 0, nil
 	}
-
-	return i, err
+	return int(i), err
 }
 
-func (p *CompositeQ) Enq(uid interface{}, data []byte, ttl ...uint32) error {
+func (p *CompositeQ) Enq(ctx context.Context, uid interface{}, data []byte, ttl ...uint32) error {
 	id, err := uuid.NewUUID()
 	if err != nil {
 		return err
 	}
 	k := fmt.Sprintf("mk%v", id)
+
+	var expire time.Duration
 	if len(ttl) > 0 && ttl[0] > 0 {
-		if _, err := p.do("SETEX", k, ttl[0], data); err != nil {
-			return err
-		}
-	} else {
-		if _, err := p.do("SET", k, data); err != nil {
-			return err
-		}
+		expire = time.Duration(ttl[0]) * time.Second
 	}
-	name := p.compositeQname(uid)
-	if _, err := p.do("RPUSH", name, k); err != nil {
+
+	if err := p.redisClient.Set(ctx, k, data, expire).Err(); err != nil {
 		return err
 	}
-	return nil
+
+	return p.redisClient.RPush(ctx, p.compositeQname(uid), k).Err()
 }
 
-func (p *CompositeQ) Deq(uid interface{}) ([]byte, error) {
+func (p *CompositeQ) Deq(ctx context.Context, uid interface{}) ([]byte, error) {
 	for {
 		name := p.compositeQname(uid)
-		k, err := redis.String(p.do("LPOP", name))
-		if err != nil && err != redis.ErrNil {
+		k, err := p.redisClient.LPop(ctx, name).Result()
+		if err != nil && err != redis.Nil {
 			return nil, err
 		}
 
@@ -73,15 +69,15 @@ func (p *CompositeQ) Deq(uid interface{}) ([]byte, error) {
 			break
 		}
 
-		b, err := redis.Bytes(p.do("GET", k))
-		if err != nil && err != redis.ErrNil {
+		b, err := p.redisClient.Get(ctx, k).Bytes()
+		if err != nil && err != redis.Nil {
 			return nil, err
 		}
 
 		if b != nil {
 			go func() {
 				// clean
-				if _, err := p.do("DEL", k); err != nil {
+				if err := p.redisClient.Del(ctx, k).Err(); err != nil {
 					log.Println("[Q Deq] err in clean", err)
 				}
 			}()

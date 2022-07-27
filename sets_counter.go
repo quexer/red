@@ -1,80 +1,98 @@
 package red
 
 import (
+	"context"
 	"fmt"
+	"strconv"
+	"time"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 )
 
-// unique value counter based on redis sets
+// SetsCounter unique value counter based on redis sets
 type SetsCounter struct {
-	name   string
-	expire int // in second
-	do     DoFunc
+	name        string
+	expire      int // in second
+	redisClient redis.UniversalClient
 }
 
-func NewSetsCounter(name string, expire int, f DoFunc) *SetsCounter {
+// NewSetsCounter create a new SetsCounter.
+//  name: name of the counter
+//  expire: expire time in second
+func NewSetsCounter(name string, expire int, redisClient redis.UniversalClient) *SetsCounter {
 	return &SetsCounter{
-		name:   name,
-		expire: expire,
-		do:     f,
+		name:        name,
+		expire:      expire,
+		redisClient: redisClient,
 	}
 }
 
-// add value to sets,  if there're something new, increase the counter
-func (p *SetsCounter) Append(key, uniqVal interface{}) error {
+// Append add value to SetsCounter,  if there's something new, increase the counter
+func (p *SetsCounter) Append(ctx context.Context, key string, uniqVal interface{}) error {
 	// append value to sets
 	subKey := fmt.Sprintf("%s__%v", p.name, key)
-	n, err := redis.Int(p.do("SADD", subKey, uniqVal))
+
+	n, err := p.redisClient.SAdd(ctx, subKey, uniqVal).Result()
 	if err != nil {
 		return err
 	}
 
 	// set expire for sets key, if needed
-	if err := p.setExpire(subKey); err != nil {
+	if err := p.setExpire(ctx, subKey); err != nil {
 		return err
 	}
 
 	if n == 0 {
 		return nil // nothing changed
 	}
-	_, err = p.do("HINCRBY", p.name, key, n)
-	if err != nil {
+
+	if err := p.redisClient.HIncrBy(ctx, p.name, key, n).Err(); err != nil {
 		return err
 	}
 
 	// set expire for hash key, if needed
-	return p.setExpire(p.name)
+	return p.setExpire(ctx, p.name)
 }
 
-func (p *SetsCounter) setExpire(key string) error {
-	ttl, err := redis.Int(p.do("TTL", key))
+func (p *SetsCounter) setExpire(ctx context.Context, key string) error {
+	ttl, err := p.redisClient.TTL(ctx, key).Result()
 	if err != nil {
 		return err
 	}
 	if ttl < 0 {
-		_, err := p.do("EXPIRE", key, p.expire)
-		if err != nil {
+		if err := p.redisClient.Expire(ctx, key, time.Duration(p.expire)*time.Second).Err(); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *SetsCounter) Get(key interface{}) (int, error) {
-	i, err := redis.Int(p.do("HGET", p.name, key))
-	if err == redis.ErrNil {
+func (p *SetsCounter) Get(ctx context.Context, key string) (int, error) {
+
+	i, err := p.redisClient.HGet(ctx, p.name, key).Int()
+	if err == redis.Nil {
 		// expire
 		return 0, nil
 	}
 	return i, err
 }
 
-func (p *SetsCounter) GetAll() (map[string]int, error) {
-	result, err := redis.IntMap(redis.Values(p.do("HGETALL", p.name)))
-	if err == redis.ErrNil {
-		// expire
+func (p *SetsCounter) GetAll(ctx context.Context) (map[string]int, error) {
+	m, err := p.redisClient.HGetAll(ctx, p.name).Result()
+	if err == redis.Nil {
 		return nil, nil
 	}
-	return result, err
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]int)
+	for k, v := range m {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, err
+		}
+		result[k] = n
+	}
+	return result, nil
 }

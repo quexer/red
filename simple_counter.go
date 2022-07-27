@@ -1,65 +1,46 @@
 package red
 
 import (
-	"log"
+	"context"
 
-	
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 )
 
-// SimpleCounter is the interface that wraps a increase-only counter(based on redis HyperLogLog)
-//
-// Get return count. if multiple key was provided, the result is union count of the keys
-//
-// Append append items to counter, the count will be increased only if brand new items have been append.
-// if this happen, Append() will return true, otherwise return false
-//
-// Del delete the keys , reset counter to 0
-
+// SimpleCounter is the interface that wraps an increase-only counter(based on redis HyperLogLog)
 type SimpleCounter interface {
-	Get(key ...string) int
-	Append(key string, element ...interface{}) bool
-	Del(key ...string)
+	Get(ctx context.Context, key ...string) (int, error)
+	Append(ctx context.Context, key string, element ...interface{}) (bool, error)
+	Del(ctx context.Context, key ...string) error
 }
 
 type simpleCounter struct {
-	do   DoFunc
-	name string
+	redisClient redis.UniversalClient
 }
 
-func NewSimpleCounter(f DoFunc) SimpleCounter {
+// NewSimpleCounter create a new SimpleCounter.
+func NewSimpleCounter(redisClient redis.UniversalClient) SimpleCounter {
 	return &simpleCounter{
-		do: f,
+		redisClient: redisClient,
 	}
 }
 
-func (p *simpleCounter) Get(key ...string) int {
-	l := []interface{}{}
-	for _, k := range key {
-		l = append(l, k)
-	}
-
-	i, err := redis.Int(p.do("PFCOUNT", l...))
-	log.Println(err)
-	return i
+// Get return count. if multiple key was provided, the result is union count of the keys
+func (p *simpleCounter) Get(ctx context.Context, key ...string) (int, error) {
+	n, err := p.redisClient.PFCount(ctx, key...).Result()
+	return int(n), err
 }
 
-func (p *simpleCounter) Append(key string, element ...interface{}) bool {
-	l := []interface{}{key}
-	for _, v := range element {
-		l = append(l, v)
+// Append items to counter, the count will be increased only if brand-new items have been appended.
+// if this happens, it will return true, otherwise return false
+func (p *simpleCounter) Append(ctx context.Context, key string, element ...interface{}) (bool, error) {
+	i, err := p.redisClient.PFAdd(ctx, key, element...).Result()
+	if err != nil {
+		return false, err
 	}
-	i, err := redis.Int(p.do("PFADD", l...))
-	log.Println(err)
-	return i == 1
+	return i > 0, nil
 }
 
-func (p *simpleCounter) Del(key ...string) {
-	l := []interface{}{}
-	for _, k := range key {
-		l = append(l, k)
-	}
-
-	_, err := redis.Int(p.do("DEL", l...))
-	log.Println(err)
+// Del deletes the keys , reset counter to 0
+func (p *simpleCounter) Del(ctx context.Context, key ...string) error {
+	return p.redisClient.Del(ctx, key...).Err()
 }
