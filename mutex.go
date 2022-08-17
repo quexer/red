@@ -39,7 +39,8 @@ func (p *Mutex) Lock(ctx context.Context, name string, expire time.Duration) (Un
 
 	m := p.rs.NewMutex(name,
 		redsync.WithExpiry(expire),
-		redsync.WithTries(1), // no retry
+		redsync.WithTries(1),           // no retry
+		redsync.WithTimeoutFactor(0.2), // increase timeout factor
 	)
 
 	err := m.LockContext(ctx)
