@@ -48,6 +48,9 @@ func (p *Mutex) Lock(ctx context.Context, name string, expire time.Duration) (Un
 	if err == redsync.ErrFailed {
 		return nil, false, nil
 	}
+	if _, ok := err.(*redsync.ErrTaken); ok {
+		return nil, false, nil
+	}
 	if err != nil {
 		return nil, false, err
 	}
