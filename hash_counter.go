@@ -12,6 +12,10 @@ type HashCounter struct {
 	redisClient redis.UniversalClient
 }
 
+// NewHashCounter creates a new instance of HashCounter.
+// name is the name of the hash in Redis.
+// redisClient is the Redis client used to interact with the Redis server.
+// Returns a new instance of HashCounter.
 func NewHashCounter(name string, redisClient redis.UniversalClient) *HashCounter {
 	return &HashCounter{
 		name:        name,
