@@ -6,12 +6,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 // CompositeQ composite queue implementation, using redis
-//  support multi queue & queue element expire
+// support multi queue & queue element expire
 type CompositeQ struct {
 	name        string
 	redisClient redis.UniversalClient

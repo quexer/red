@@ -3,7 +3,7 @@ package red
 import (
 	"context"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // SimpleCounter is the interface that wraps an increase-only counter(based on redis HyperLogLog)

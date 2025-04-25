@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // SetsCounter unique value counter based on redis sets
@@ -17,8 +17,9 @@ type SetsCounter struct {
 }
 
 // NewSetsCounter create a new SetsCounter.
-//  name: name of the counter
-//  expire: expire time in second
+//
+//	name: name of the counter
+//	expire: expire time in second
 func NewSetsCounter(name string, expire int, redisClient redis.UniversalClient) *SetsCounter {
 	return &SetsCounter{
 		name:        name,
